@@ -104,6 +104,30 @@ def load_image(file_path):
     return image, int(label)
 
 
+def load_dataset(ds_root_folder):
+    """TODO: what is load_dataset doing?
+    """
+    logg = logging.getLogger(f"c.{__name__}.load_dataset")
+    logg.debug(f"Start load_dataset")
+
+    list_ds = tf.data.Dataset.list_files(str(ds_root_folder / "*/*"))
+
+    for f in list_ds.take(5):
+        print(f.numpy())
+
+    labeled_ds = list_ds.map(load_image)
+    for image_raw, label_text in labeled_ds.take(1):
+        print(image_raw)
+        print(label_text.numpy())
+
+    batch_size = 1024
+    batched_ds = labeled_ds.batch(batch_size)
+
+    prefetch_ds = batched_ds.prefetch(3)
+
+    return prefetch_ds
+
+
 def run_ex_load_dataset_mnist(args):
     """TODO: What is ex_load_dataset_mnist doing?
 
@@ -114,20 +138,9 @@ def run_ex_load_dataset_mnist(args):
     logg.debug(f"Starting run_ex_load_dataset_mnist")
 
     mnist_root_train = Path("../datasets/mnist_png/training")
-    list_ds = tf.data.Dataset.list_files(str(mnist_root_train / "*/*"))
-
-    for f in list_ds.take(5):
-        print(f.numpy())
-
-    labeled_ds = list_ds.map(load_image)
-    for image_raw, label_text in labeled_ds.take(1):
-        print(image_raw)
-        print(label_text.numpy())
-
-    batch_size = 64
-    batched_ds = labeled_ds.batch(batch_size)
-
-    prefetch_ds = batched_ds.prefetch(3)
+    mnist_root_test = Path("../datasets/mnist_png/testing")
+    train_ds = load_dataset(mnist_root_train)
+    test_ds = load_dataset(mnist_root_test)
 
     inputs = keras.Input(shape=(784,))
     x = layers.Dense(64, activation="relu")(inputs)
@@ -142,9 +155,9 @@ def run_ex_load_dataset_mnist(args):
         metrics=["accuracy"],
     )
 
-    model.fit(prefetch_ds, epochs=2)
+    model.fit(train_ds, epochs=2)
 
-    test_scores = model.evaluate(x_test, y_test, verbose=2)
+    test_scores = model.evaluate(test_ds, verbose=2)
     logg.debug(f"Test loss: {test_scores[0]}")
     logg.debug(f"Test accuracy: {test_scores[1]}")
 
